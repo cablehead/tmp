@@ -1,0 +1,152 @@
+#!/usr/bin/env python
+
+def yield_line(r):
+	while True:
+		c = r(1)
+		if c == '\r':
+			n = r(1)
+			if n == '\n':
+				break
+			yield c
+			yield n
+		yield c
+
+
+def read_int(r):
+	n = 0
+	for c in yield_line(r):
+		n = (n * 10) + int(c)
+	return n
+
+
+def read_array(r):
+	n = read_int(r)
+	a = []
+	while n > 0:
+		a.append(read(r))
+		n -= 1
+	return a
+
+
+def read_simple_string(r):
+	a = []
+	for c in yield_line(r):
+		a.append(c)
+	return ''.join(a)
+
+
+def read_bulk_string(r):
+	n = read_int(r)
+	s = r(n)
+	assert r(2) == '\r\n'
+	return s
+
+
+def read(r):
+	c = r(1)
+	if c == ':':
+		return read_int(r)
+	if c == '+':
+		return read_simple_string(r)
+	if c == '$':
+		return read_bulk_string(r)
+	if c == '*':
+		return read_array(r)
+	raise Exception('TODO', c)
+
+
+## py.test
+
+from StringIO import StringIO
+
+
+def S(s):
+	return StringIO(s).read
+
+
+def test_read_int():
+	assert read_int(S("3\r\n")) == 3
+	assert read_int(S("23\r\n")) == 23
+	assert read_int(S("999\r\n")) == 999
+
+
+def test_read_simple_string():
+	assert read_simple_string(S("foo\r\n")) == "foo"
+
+
+def test_read_bulk_string():
+	assert read_bulk_string(S("3\r\nfoo\r\n")) == "foo"
+
+
+def test_read_array():
+	assert read(S("*3\r\n:23\r\n+foo\r\n:1\r\n")) == [23, "foo", 1]
+
+
+# sample stream response
+
+RESPONSE = """*3
+*2
++1518649680995-0
+*4
+$9
+sensor-id
+$4
+1234
+$11
+temperature
+$4
+10.5
+*2
++1518650428617-0
+*4
+$9
+sensor-id
+$4
+1234
+$11
+temperature
+$2
+11
+*2
++1518650465536-0
+*2
+$9
+sensor-id
+$4
+1235
+""".replace('\n', '\r\n')
+
+
+def test_read():
+	assert read(S(RESPONSE)) == [
+		['1518649680995-0', ['sensor-id', '1234', 'temperature', '10.5']],
+		['1518650428617-0', ['sensor-id', '1234', 'temperature', '11']],
+		['1518650465536-0', ['sensor-id', '1235']], ]
+
+
+## MAIN
+
+import json
+import sys
+
+
+from docopt import docopt
+
+"""redis-parse
+
+Usage:
+  redis-parse [-t <type>]
+
+Options:
+  -t      Type ('stream')
+
+if __name__ == '__main__':
+    arguments = docopt(__doc__, version='Naval Fate 2.0')
+    print(arguments)
+"""
+
+def stream(a):
+	return [(key, dict(zip(*[iter(values)]*2))) for key, values in a]
+
+if __name__ == "__main__":
+	print json.dumps(stream(read(sys.stdin.read)))
