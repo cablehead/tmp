@@ -1,0 +1,33 @@
+digraph G {
+    edge [minlen=2 color="#333333"]
+    graph [rankdir=TD compound=true fontname="Source Code Pro Light" splines=true dpi=144]
+	node [
+		shape=box width=1 height=.4 margin=0.05 fontname="Source Code Pro Light"
+		fillcolor="#ffffff" color="#aaaaaa" style="filled,solid"]
+
+  subgraph cluster_0 {
+    graph [color="#86acd3" style="filled,solid" penwidth=0 fillcolor="#eaf2fb"]
+    
+    a0 [label="EC2"] a1 [label="EC2"]
+    label = "prod";
+  }
+
+  subgraph cluster_1 {
+    graph [color="#86acd3" style="filled,solid" penwidth=0 fillcolor="#f2faea"]
+    b0 [label="EC2"] b1 [label="EC2"] [constraint=false];
+    label = "prod'";
+  }
+
+  subgraph cluster_2 {
+    graph [style="filled,solid" penwidth=0 fillcolor="#eaeafa"]
+    Github -> CircleCI -> CodeDeploy;
+    label = "CI / CD";
+  }
+  
+  CodeDeploy -> b0 [lhead=cluster_1];
+
+  ELB -> a1 [lhead=cluster_0];
+  ELB -> b0 [lhead=cluster_1];
+
+  a0 -> RDS;
+}
